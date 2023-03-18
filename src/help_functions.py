@@ -231,29 +231,21 @@ def fit_evaluation_models(n_neighbors_lof, n_neighbors_nn, training_data):
     return lof_estimator, nn_model
 
 
-def evaluate(
-    X_pred_neg,
-    cf_samples,
-    pred_labels,
-    cf_labels,
-    lof_estimator_pos,
-    lof_estimator_neg,
-    nn_estimator_pos,
-    nn_estimator_neg,
-):
-    proxi = euclidean_distance(X_pred_neg, cf_samples)
-    valid = validity_score(pred_labels, cf_labels)
-    compact = compactness_score(X_pred_neg, cf_samples)
+def evaluate(X_pred_neg, best_cf_samples, z_pred, n_timesteps, tree, maximum_distance=1):
+    proxi = euclidean_distance(X_pred_neg, best_cf_samples)
+    valid = validity_score(z_pred)
+    # compact = compactness_score(X_pred_neg, best_cf_samples, n_timesteps=n_timesteps)
+    cost_mean, cost_std = cost_score(z_pred)
+    
+    # neigh_count = neighbour_counts_within_radius(best_cf_samples.reshape(-1, n_timesteps), tree, radius=0.3*maximum_distance)
+    # dist_knn = distance_knn(best_cf_samples.reshape(-1, n_timesteps), tree) 
 
-    # TODO: add LOF and RP score for debugging training?
-    lof_score = calculate_lof(
-        cf_samples, pred_labels, lof_estimator_pos, lof_estimator_neg
-    )
-    rp_score = relative_proximity(
-        X_pred_neg, cf_samples, pred_labels, nn_estimator_pos, nn_estimator_neg
-    )
+    # return proxi, valid, compact, cost_mean, cost_std, neigh_count, dist_knn     # exclude unused metrics in the final evaluation
+    return proxi, valid, cost_mean, 
 
-    return proxi, valid, lof_score, rp_score, compact
+def cost_score(cf_probs, decision_prob=0.5):
+    diff = cf_probs - decision_prob
+    return np.mean(diff), np.std(diff)
 
 
 def euclidean_distance(X, cf_samples, average=True):
@@ -261,9 +253,12 @@ def euclidean_distance(X, cf_samples, average=True):
     return np.mean(paired_distances) if average else paired_distances
 
 
-def validity_score(pred_labels, cf_labels):
-    desired_labels = 1 - pred_labels  # for binary classification
-    return accuracy_score(y_true=desired_labels, y_pred=cf_labels)
+
+def validity_score(cf_probs, decision_prob=0.5):
+    valid_counts = np.sum(cf_probs >= decision_prob)
+    total_counts = len(cf_probs)
+
+    return valid_counts/total_counts
 
 
 # originally from: https://github.com/isaksamsten/wildboar/blob/859758884677ba32a601c53a5e2b9203a644aa9c/src/wildboar/metrics/_counterfactual.py#L279
