@@ -354,88 +354,119 @@ def relative_proximity(
 """
 counterfactual model needed
 """
-
-
-def find_best_lr(
-    classifier,
-    X_samples,
-    pred_labels,
-    autoencoder=None,
-    encoder=None,
-    decoder=None,
-    lr_list=[0.001, 0.0001],
-    pred_margin_weight=1.0,
-    step_weights=None,
-    random_state=None,
-    padding_size=0,
-    target_prob=0.5,
-):
+def find_best_lr(classifier, X_samples, autoencoder=None, encoder=None, decoder=None, lr_list=[0.001, 0.0001]):
     # Find the best alpha for vanilla LatentCF
     best_cf_model, best_cf_samples, best_cf_embeddings = None, None, None
     best_losses, best_valid_frac, best_lr = 0, -1, 0
-
+    
     for lr in lr_list:
-        print(f"======================== CF search started, with lr={lr}.")
         # Fit the LatentCF model
-        # TODO: fix the class name here: ModifiedLatentCF or GuidedLatentCF? from _guided or _composite?
         if encoder and decoder:
-            cf_model = ModifiedLatentCF(
-                probability=target_prob,
-                only_encoder=encoder,
-                only_decoder=decoder,
-                optimizer=tf.optimizers.Adam(learning_rate=lr),
-                pred_margin_weight=pred_margin_weight,
-                step_weights=step_weights,
-                random_state=random_state,
-            )
+            cf_model = ModifiedLatentCF(probability=0.5, only_encoder=encoder, only_decoder=decoder, optimizer=tf.optimizers.Adam(learning_rate=lr))
         else:
-            cf_model = ModifiedLatentCF(
-                probability=target_prob,
-                autoencoder=autoencoder,
-                optimizer=tf.optimizers.Adam(learning_rate=lr),
-                pred_margin_weight=pred_margin_weight,
-                step_weights=step_weights,
-                random_state=random_state,
-            )
-
+            cf_model = ModifiedLatentCF(probability=0.5, autoencoder=autoencoder, optimizer=tf.optimizers.Adam(learning_rate=lr))
+      
         cf_model.fit(classifier)
 
         if encoder and decoder:
-            cf_embeddings, losses, _ = cf_model.transform(X_samples, pred_labels)
+            cf_embeddings, losses = cf_model.transform(X_samples)
             cf_samples = decoder.predict(cf_embeddings)
-            # predicted probabilities of CFs
-            z_pred = classifier.predict(cf_embeddings)
-            cf_pred_labels = np.argmax(z_pred, axis=1)
+            z_pred = classifier.predict(cf_embeddings) # predicted probabilities of CFs
         else:
-            cf_samples, losses, _ = cf_model.transform(X_samples, pred_labels)
-            # predicted probabilities of CFs
-            z_pred = classifier.predict(cf_samples)
-            cf_pred_labels = np.argmax(z_pred, axis=1)
+            cf_samples, losses = cf_model.transform(X_samples)
+            z_pred = classifier.predict(cf_samples) # predicted probabilities of CFs
 
-        valid_frac = validity_score(pred_labels, cf_pred_labels)
-        proxi_score = euclidean_distance(
-            remove_paddings(X_samples, padding_size),
-            remove_paddings(cf_samples, padding_size),
-        )
+        print(f'lr={lr} finished.')
+        valid_frac = validity_score(z_pred)
 
-        # uncomment for debugging
-        print(f"lr={lr} finished. Validity: {valid_frac}, proximity: {proxi_score}.")
-
-        # TODO: fix (padding) dimensions of `lof_estimator` and `nn_estimator` during training, for debugging
-        # proxi_score, valid_frac, lof_score, rp_score, cost_mean, cost_std = evaluate(
-        #     X_pred_neg=X_samples,
-        #     cf_samples=cf_samples,
-        #     z_pred=z_pred,
-        #     n_timesteps=_,
-        #     lof_estimator=lof_estimator,
-        #     nn_estimator=nn_estimator,
-        # )
-
-        # if valid_frac >= best_valid_frac and proxi_score <= best_proxi_score:
         if valid_frac >= best_valid_frac:
             best_cf_model, best_cf_samples = cf_model, cf_samples
             best_losses, best_lr, best_valid_frac = losses, lr, valid_frac
             if encoder and decoder:
                 best_cf_embeddings = cf_embeddings
+    
+    return best_lr, best_cf_model, best_cf_samples, best_cf_embeddings 
 
-    return best_lr, best_cf_model, best_cf_samples, best_cf_embeddings
+# def find_best_lr(
+#     classifier,
+#     X_samples,
+#     pred_labels,
+#     autoencoder=None,
+#     encoder=None,
+#     decoder=None,
+#     lr_list=[0.001, 0.0001],
+#     pred_margin_weight=1.0,
+#     step_weights=None,
+#     random_state=None,
+#     padding_size=0,
+#     target_prob=0.5,
+# ):
+#     # Find the best alpha for vanilla LatentCF
+#     best_cf_model, best_cf_samples, best_cf_embeddings = None, None, None
+#     best_losses, best_valid_frac, best_lr = 0, -1, 0
+
+#     for lr in lr_list:
+#         print(f"======================== CF search started, with lr={lr}.")
+#         # Fit the LatentCF model
+#         # TODO: fix the class name here: ModifiedLatentCF or GuidedLatentCF? from _guided or _composite?
+#         if encoder and decoder:
+#             cf_model = ModifiedLatentCF(
+#                 probability=target_prob,
+#                 only_encoder=encoder,
+#                 only_decoder=decoder,
+#                 optimizer=tf.optimizers.Adam(learning_rate=lr),
+#                 pred_margin_weight=pred_margin_weight,
+#                 step_weights=step_weights,
+#                 random_state=random_state,
+#             )
+#         else:
+#             cf_model = ModifiedLatentCF(
+#                 probability=target_prob,
+#                 autoencoder=autoencoder,
+#                 optimizer=tf.optimizers.Adam(learning_rate=lr),
+#                 pred_margin_weight=pred_margin_weight,
+#                 step_weights=step_weights,
+#                 random_state=random_state,
+#             )
+
+#         cf_model.fit(classifier)
+
+#         if encoder and decoder:
+#             cf_embeddings, losses, _ = cf_model.transform(X_samples, pred_labels)
+#             cf_samples = decoder.predict(cf_embeddings)
+#             # predicted probabilities of CFs
+#             z_pred = classifier.predict(cf_embeddings)
+#             cf_pred_labels = np.argmax(z_pred, axis=1)
+#         else:
+#             cf_samples, losses, _ = cf_model.transform(X_samples, pred_labels)
+#             # predicted probabilities of CFs
+#             z_pred = classifier.predict(cf_samples)
+#             cf_pred_labels = np.argmax(z_pred, axis=1)
+
+#         valid_frac = validity_score(pred_labels, cf_pred_labels)
+#         proxi_score = euclidean_distance(
+#             remove_paddings(X_samples, padding_size),
+#             remove_paddings(cf_samples, padding_size),
+#         )
+
+#         # uncomment for debugging
+#         print(f"lr={lr} finished. Validity: {valid_frac}, proximity: {proxi_score}.")
+
+#         # TODO: fix (padding) dimensions of `lof_estimator` and `nn_estimator` during training, for debugging
+#         # proxi_score, valid_frac, lof_score, rp_score, cost_mean, cost_std = evaluate(
+#         #     X_pred_neg=X_samples,
+#         #     cf_samples=cf_samples,
+#         #     z_pred=z_pred,
+#         #     n_timesteps=_,
+#         #     lof_estimator=lof_estimator,
+#         #     nn_estimator=nn_estimator,
+#         # )
+
+#         # if valid_frac >= best_valid_frac and proxi_score <= best_proxi_score:
+#         if valid_frac >= best_valid_frac:
+#             best_cf_model, best_cf_samples = cf_model, cf_samples
+#             best_losses, best_lr, best_valid_frac = losses, lr, valid_frac
+#             if encoder and decoder:
+#                 best_cf_embeddings = cf_embeddings
+
+#     return best_lr, best_cf_model, best_cf_samples, best_cf_embeddings
