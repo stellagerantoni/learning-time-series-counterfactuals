@@ -450,7 +450,7 @@ def find_best_lr(
         )
 
         # uncomment for debugging
-        print(f"lr={lr} finished. Validity: {valid_frac}, proximity: {proxi_score}.")
+        print(f"lr={learning_rate} finished. Validity: {valid_frac}, proximity: {proxi_score}.")
 
         # TODO: fix (padding) dimensions of `lof_estimator` and `nn_estimator` during training, for debugging
         # proxi_score, valid_frac, lof_score, rp_score, cost_mean, cost_std = evaluate(
