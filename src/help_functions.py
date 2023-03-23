@@ -405,8 +405,8 @@ def find_best_lr(
     best_cf_model, best_cf_samples, best_cf_embeddings = None, None, None
     best_losses, best_valid_frac, best_lr = 0, -1, 0
 
-    for learning_rate in lr_list:
-        print(f"======================== CF search started, with lr={learning_rate}.")
+    for lr in lr_list:
+        print(f"======================== CF search started, with lr={lr}.")
         # Fit the LatentCF model
         # TODO: fix the class name here: ModifiedLatentCF or GuidedLatentCF? from _guided or _composite?
         if encoder and decoder:
@@ -414,7 +414,7 @@ def find_best_lr(
                 probability=target_prob,
                 only_encoder=encoder,
                 only_decoder=decoder,
-                optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=learning_rate),
+                optimizer=tf.optimizers.Adam(learning_rate=lr),
                 pred_margin_weight=pred_margin_weight,
                 step_weights=step_weights,
                 random_state=random_state,
@@ -423,7 +423,7 @@ def find_best_lr(
             cf_model = ModifiedLatentCF(
                 probability=target_prob,
                 autoencoder=autoencoder,
-                optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=learning_rate),
+                optimizer=tf.optimizers.Adam(learning_rate=lr),
                 pred_margin_weight=pred_margin_weight,
                 step_weights=step_weights,
                 random_state=random_state,
@@ -450,7 +450,7 @@ def find_best_lr(
         )
 
         # uncomment for debugging
-        print(f"lr={learning_rate} finished. Validity: {valid_frac}, proximity: {proxi_score}.")
+        print(f"lr={lr} finished. Validity: {valid_frac}, proximity: {proxi_score}.")
 
         # TODO: fix (padding) dimensions of `lof_estimator` and `nn_estimator` during training, for debugging
         # proxi_score, valid_frac, lof_score, rp_score, cost_mean, cost_std = evaluate(
@@ -465,7 +465,7 @@ def find_best_lr(
         # if valid_frac >= best_valid_frac and proxi_score <= best_proxi_score:
         if valid_frac >= best_valid_frac:
             best_cf_model, best_cf_samples = cf_model, cf_samples
-            best_losses, best_lr, best_valid_frac = losses, learning_rate, valid_frac
+            best_losses, best_lr, best_valid_frac = losses, lr, valid_frac
             if encoder and decoder:
                 best_cf_embeddings = cf_embeddings
 
