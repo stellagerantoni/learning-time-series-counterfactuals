@@ -414,7 +414,7 @@ def find_best_lr(
                 probability=target_prob,
                 only_encoder=encoder,
                 only_decoder=decoder,
-                optimizer=tf.optimizers.Adam(learning_rate=lr),
+                optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=lr),
                 pred_margin_weight=pred_margin_weight,
                 step_weights=step_weights,
                 random_state=random_state,
@@ -423,7 +423,7 @@ def find_best_lr(
             cf_model = ModifiedLatentCF(
                 probability=target_prob,
                 autoencoder=autoencoder,
-                optimizer=tf.optimizers.Adam(learning_rate=lr),
+                optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=lr),
                 pred_margin_weight=pred_margin_weight,
                 step_weights=step_weights,
                 random_state=random_state,
