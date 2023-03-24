@@ -243,6 +243,19 @@ def evaluate(X_pred_neg, best_cf_samples, z_pred, n_timesteps, tree, maximum_dis
     # return proxi, valid, compact, cost_mean, cost_std, neigh_count, dist_knn     # exclude unused metrics in the final evaluation
     return proxi, valid, cost_mean, 
 
+def evaluate2(X_pred_neg, best_cf_samples, z_pred, n_timesteps, maximum_distance=1):
+    proxi = euclidean_distance(X_pred_neg, best_cf_samples)
+    valid = validity_score(z_pred)
+    # compact = compactness_score(X_pred_neg, best_cf_samples, n_timesteps=n_timesteps)
+    cost_mean, cost_std = cost_score(z_pred)
+    
+    # neigh_count = neighbour_counts_within_radius(best_cf_samples.reshape(-1, n_timesteps), tree, radius=0.3*maximum_distance)
+    # dist_knn = distance_knn(best_cf_samples.reshape(-1, n_timesteps), tree) 
+
+    # return proxi, valid, compact, cost_mean, cost_std, neigh_count, dist_knn     # exclude unused metrics in the final evaluation
+    return proxi, valid, cost_mean, cost_std
+
+
 def cost_score(cf_probs, decision_prob=0.5):
     diff = cf_probs - decision_prob
     return np.mean(diff), np.std(diff)
