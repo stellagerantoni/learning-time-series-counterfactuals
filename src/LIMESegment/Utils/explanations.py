@@ -25,21 +25,37 @@ def NNSegment(t, window_size, change_points):
     Output: 
         np.array of change point indexes 
     """
+    #mp is a 2-d (t - m + 1,4)array with 4 columns 
+    # c1: uclidean distance of the subsequence to the closesed neighbor
+    #c2: the index of the colsesed neigthboor
+    #c3: the index of the left clossesed neighboor
+    #c4: the index of the right neirest neighboor
     mp = stumpy.stump(t, m=window_size)
+    #proposed_cp is propose changes if the distance of the row i+1 is diffrent than the row i plus 1  then it is proposed as a sinificant change in the destance matrix.
     proposed_cp = [i for i in range(0,mp.shape[0]-1) if mp[i+1,1] != mp[i,1] + 1]
     tolerance = int(window_size/2)
     variances = []
+
+    #For each candidate change point, 
+    # the code first computes the mean and standard deviation of the time series 
+    # within two windows centered around the candidate point. 
+    # The mean_change variable is then set to the absolute difference 
+    # between the means of the two windows,
+    #  while std_change is set to the absolute difference between 
+    #  the standard deviations of the two windows. 
+    #  The std_mean variable is set to the mean of the standard deviations 
+    #  of the two windows.
     for idx in proposed_cp:
         mean_change = np.abs(np.mean(t[idx-tolerance:idx]) - np.mean(t[idx:idx+tolerance]))
         std_change = np.abs(np.std(t[idx-tolerance:idx]) - np.std(t[idx:idx+tolerance])) 
         std_mean = np.mean([np.std(t[idx-tolerance:idx]),np.std(t[idx:idx+tolerance])])
         variances.append(mean_change*std_change/std_mean)
-    sorted_idx = np.flip(np.array(variances).argsort())
+    sorted_idx = np.flip(np.array(variances).argsort())#from largest to smallest
     sorted_cp = [proposed_cp[idx] for idx in sorted_idx]
     selected_cp = []
-    covered = list(np.arange(0,tolerance))
+    covered = list(np.arange(0,tolerance)) #[0, 1, 2, 3, 4]
     ic, i = 0, 0 
-    while ic < change_points:
+    while ic < change_points: #change points are givven when function called. Right now it is int 3
         if i == len(sorted_cp):
             break
         if sorted_cp[i] not in covered:
@@ -100,7 +116,7 @@ def LIMESegment(example, model, model_type='class', distance='dtw', n=100, windo
         cp = 3
     if f is None: 
         f = int(example.shape[0]/10)
-
+    #series.reshape(series.shape[0]) reshapes the time series to a 1-d array. (it was two)
     cp_indexes = NNSegment(example.reshape(example.shape[0]), window_size, cp)
     segment_indexes = [0] + cp_indexes + [-1]
     
@@ -209,6 +225,5 @@ def NEVES(example, model, X_background, model_type="class", n=100):
     clf = Ridge()
     clf.fit(generated_samples_interpretable,y_labels,weights)
     return clf.coef_, cp_indexes
-
 
 
