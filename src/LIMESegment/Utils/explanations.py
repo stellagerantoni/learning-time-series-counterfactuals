@@ -65,9 +65,20 @@ def NNSegment(t, window_size, change_points):
             covered = covered + list(np.arange(sorted_cp[i]-tolerance,sorted_cp[i]))
         i +=1 
     selected_cp = np.sort(np.asarray(selected_cp))
+
+    # change_points is set to 3, so the function will return 3 change points. 
+    # However, the actual number of change points returned may be less than 3
+    # if there are not enough significant change points detected by the algorithm.
+
     return(list(selected_cp))
 
 def backgroundIdentification(original_signal,f=40):
+
+    # Background identification aims to isolate the non-periodic or non-transient components in a signal, 
+    # which are considered to be the background or noise.
+    # The background components can be removed from the signal or can be used to reconstruct
+    # the signal by filtering out the background frequencies.
+
     f, t, Zxx = signal.stft(original_signal.reshape(original_signal.shape[0]),1,nperseg=f)
     frequency_composition_abs = np.abs(Zxx)
     measures = []
@@ -87,13 +98,31 @@ def backgroundIdentification(original_signal,f=40):
     _, xrec = signal.istft(background_frequency, 1)
     xrec = xrec[:original_signal.shape[0]]
     xrec = xrec.reshape(original_signal.shape)
+    #xrec is a numpy array that contains the reconstructed signal after applying the background identification process.
+    #It represents the background component of the original signal that was removed during the process.
     return xrec
 
 def RBP(generated_samples_interpretable, original_signal, segment_indexes, f):
+
+    #  RBP is a technique for modifying a signal by replacing certain segments with corresponding segments 
+    #  the background signal. It is used to generate new samples that are similar to the original signal, 
+    #  but with specific parts modified according to the output of an interpretable model.
+
+  #segment  indices are what NNsagement returned
     generated_samples_raw = []
+
+    # The RBP function first calls the backgroundIdentification function to identify and extract the non-periodic 
+    # or non-transient components of the original signal. These components are considered to be the "background" of the signal, 
+    # and are subtracted from the signal to leave only the interesting parts.
+
     xrec = backgroundIdentification(original_signal)
     for sample_interpretable in generated_samples_interpretable:
         raw_signal = original_signal.copy()
+
+        # for each binary sequence in generated_samples_interpretable, the function creates a copy of original_signal,
+        # and for each segment indicated by a 0 in the binary sequence, it replaces the values in the copy of the signal 
+        # with the corresponding values in the background signal obtained from backgroundIdentification.
+
         for index in range(0,len(sample_interpretable)-1):
             if sample_interpretable[index] == 0:
                 index0 = segment_indexes[index]
