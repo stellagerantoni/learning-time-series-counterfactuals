@@ -447,7 +447,7 @@ def find_best_lr(
             cf_pred_labels = np.argmax(z_pred, axis=1)
 
         #valid_frac = validity_score(pred_labels, cf_pred_labels)
-        val_frac = validity_score(cf_pred_labels)
+        valid_frac = validity_score(cf_pred_labels)
         proxi_score = euclidean_distance(
             remove_paddings(X_samples, padding_size),
             remove_paddings(cf_samples, padding_size),
