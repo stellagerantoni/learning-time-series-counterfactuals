@@ -473,4 +473,4 @@ def find_best_lr(
             if encoder and decoder:
                 best_cf_embeddings = cf_embeddings
 
-    return best_lr, best_cf_model, best_cf_samples, best_cf_embeddings, cf_pred_labels, z_pred
+    return best_lr, best_cf_model, best_cf_samples, best_cf_embeddings,
