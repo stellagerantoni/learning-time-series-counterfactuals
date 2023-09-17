@@ -311,8 +311,7 @@ def get_local_weights(
         # calculate the threshold of masking, upper 25 percentile (pos contribution for neg class)
         masking_threshold = np.percentile(seg_imp, 75)
         masking_idx = np.where(seg_imp >= masking_threshold)
-
-    weighted_steps = np.ones(n_timesteps)
+    weighted_steps = np.ones((n_timesteps, n_features))
     for start_idx in masking_idx[0]:
         weighted_steps[seg_idx[start_idx] : seg_idx[start_idx + 1]] = 0
 
@@ -322,35 +321,43 @@ def get_local_weights(
 
 
 def get_global_weights(
-    input_samples, input_labels, classifier_model, random_state=None
+    input_samples, input_labels, classifier_model, n_timesteps, n_features, random_state=None,
 ):
-    n_samples, n_timesteps, n_dims = input_samples.shape  # n_dims=1
+    n_samples, _, _ = input_samples.shape
 
     class ModelWrapper:
-        def __init__(self, model):
+        def __init__(self, model, n_timesteps, n_features):
             self.model = model
+            self.fitted_ = False
+            self.n_timesteps_in_ = n_timesteps
+            self.n_features_in_ = n_features
 
         def predict(self, X):
-            p = self.model.predict(X.reshape(n_samples, n_timesteps, 1))
+            p = self.model.predict(X.reshape(n_samples, n_timesteps, n_features))
             return np.argmax(p, axis=1)
 
         def fit(self, X, y):
+            self.fitted_ = True
             return self.model.fit(X, y)
 
-    clf = ModelWrapper(classifier_model)
+    clf = ModelWrapper(classifier_model, n_timesteps, n_features)
 
-    i = IntervalImportance(scoring="accuracy",n_intervals=10, random_state=random_state)
-    i.fit(clf, input_samples.reshape(input_samples.shape[0], -1), input_labels)
+    # Flattening the multivariate series
+    i = IntervalImportance(scoring="accuracy", n_intervals=n_timesteps, random_state=random_state)
+    i.fit(clf, input_samples.reshape(n_samples, n_timesteps * n_features), input_labels)
 
-    # calculate the threshold of masking, 75 percentile
+    # Calculate the threshold of masking, 75 percentile
     masking_threshold = np.percentile(i.importances_.mean, 75)
     masking_idx = np.where(i.importances_.mean >= masking_threshold)
 
-    weighted_steps = np.ones(n_timesteps)
-    seg_idx = i.intervals_
-    for start_idx in masking_idx[0]:
-        weighted_steps[seg_idx[start_idx][0] : seg_idx[start_idx][1]] = 0
+    # Initialize the weights to ones for all timesteps and features
+    weighted_steps = np.ones((n_timesteps, n_features))
 
-    # need to reshape for multiplication in `tf.math.multiply()`
-    weighted_steps = weighted_steps.reshape(1, n_timesteps, 1)
+    # Mask across all features for identified timesteps
+    seg_idx = i.components_
+    for start_idx in masking_idx[0]:
+        weighted_steps[seg_idx[start_idx][0]:seg_idx[start_idx][1], :] = 0
+
+    # Reshape for multiplication in `tf.math.multiply()`
+    weighted_steps = weighted_steps.reshape(1, n_timesteps, n_features)
     return weighted_steps
